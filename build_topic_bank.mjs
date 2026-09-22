@@ -199,14 +199,19 @@ for (const r of master.filter((x) => x.mature_fit >= 60)) {
 }
 const motherRows = [...mothers.values()].map((m) => ({ ...m, current_level: m.max_heat >= 100000 && m.appearance_count >= 3 ? "S" : m.max_heat >= 50000 ? "A" : "B" })).sort((a, b) => b.appearance_count - a.appearance_count || b.max_heat - a.max_heat);
 
+function recommendTitle(r) {
+  if (r.category === "代际关系与家庭边界") return "人到晚年才明白：儿女真正能托底的，不是钱，而是这份担当";
+  if (r.category === "健康饮食与运动") return "身体这处毛发变白，真的暗示活不长吗？50岁后先别急着下结论";
+  return r.title;
+}
 const today = master.filter((r) => r.latest_seen_date === asOf && r.mature_fit >= 60 && !/(男篮|女篮|球队|足球|篮球|电竞|游戏|世界赛|季后赛|S\s*赛)/.test(r.title))
   .map((r) => ({ ...r, score: r.max_heat / 10000 + r.appearance_count * 5 + r.mature_fit / 10 }))
   .sort((a, b) => b.score - a.score).slice(0, 3)
-  .map((r, i) => ({ rank: i + 1, level: i === 0 ? "S" : "A", selection_reason: i === 0 ? "当日热点强度与历史验证度最高，且适合熟龄账号" : "具备熟龄改造空间，作为今日备选", ...r }));
+  .map((r, i) => ({ rank: i + 1, level: i === 0 ? "S" : "A", selection_reason: i === 0 ? "当日热点强度与历史验证度最高，且适合熟龄账号" : "具备熟龄改造空间，作为今日备选", recommended_title: recommendTitle(r), ...r }));
 
 const masterHeaders = ["topic_id","first_seen_date","latest_seen_date","appearance_count","max_heat","latest_heat","title","description","publish_time","link","thumbnail","series","category","mother_topic","mature_fit","audience_age","gender_tendency","emotion","need","title_skeleton","source_files","duplicate_status","data_note"];
 const motherHeaders = ["mother_topic","appearance_count","topic_count","latest_seen_date","max_heat","series","category","current_level"];
-const todayHeaders = ["rank","level","selection_reason",...masterHeaders,"score"];
+const todayHeaders = ["rank","level","selection_reason","recommended_title",...masterHeaders,"score"];
 const toCsv = (headers, rows) => [headers.join(","), ...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(","))].join("\n") + "\n";
 await fs.writeFile(path.join(masterDir, "hot_topics.csv"), toCsv(masterHeaders, master), "utf8");
 await fs.writeFile(path.join(masterDir, "mother_topics.csv"), toCsv(motherHeaders, motherRows), "utf8");
@@ -260,7 +265,7 @@ fillDataSheet(matureSheet, rawHeaders.concat(["source_files","data_note"]), matu
 matureSheet.getRange(`E4:F${matureRows.length + 3}`).format.numberFormat = "#,##0";
 fillDataSheet(motherSheet, motherHeaders, motherRows, "母题库", "MotherTopics", { widths: [28,16,14,16,14,18,22,14] });
 motherSheet.getRange(`E4:E${motherRows.length + 3}`).format.numberFormat = "#,##0";
-fillDataSheet(todaySheet, todayHeaders, today, `今日选题（${asOf}）`, "TodayPicks", { widths: [8,8,30,12,14,14,12,12,12,42,28,20,42,42,16,18,24,12,14,14,14,14,16,22,12] });
+fillDataSheet(todaySheet, todayHeaders, today, `今日选题（${asOf}）`, "TodayPicks", { widths: [8,8,30,42,12,14,14,12,12,12,42,28,20,42,42,16,18,24,12,14,14,14,14,16,22,12] });
 todaySheet.getRange(`F4:G${today.length + 3}`).format.numberFormat = "#,##0";
 
 workbook.recalculate();
