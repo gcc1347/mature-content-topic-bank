@@ -4,8 +4,8 @@ import { FileBlob, SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
 const root = process.cwd();
 const downloads = "C:/Users/Administrator/Downloads";
-const asOf = "2026-09-21";
-const asOfCompact = "20260921";
+const asOf = "2026-09-22";
+const asOfCompact = "20260922";
 const outputDir = path.join(root, "data", "output");
 const rawDir = path.join(root, "data", "raw");
 const masterDir = path.join(root, "data", "master");
@@ -15,6 +15,7 @@ await Promise.all([outputDir, rawDir, masterDir, qaDir].map((p) => fs.mkdir(p, {
 const allFiles = await fs.readdir(downloads);
 const rawNames = allFiles
   .filter((name) => /^921432_微信24h热文榜_\d{8}\.(csv|xlsx)$/i.test(name))
+  .filter((name) => dateFromName(name) >= "2026-09-01")
   .sort();
 for (const name of rawNames) await fs.copyFile(path.join(downloads, name), path.join(rawDir, name));
 
@@ -198,7 +199,7 @@ for (const r of master.filter((x) => x.mature_fit >= 60)) {
 }
 const motherRows = [...mothers.values()].map((m) => ({ ...m, current_level: m.max_heat >= 100000 && m.appearance_count >= 3 ? "S" : m.max_heat >= 50000 ? "A" : "B" })).sort((a, b) => b.appearance_count - a.appearance_count || b.max_heat - a.max_heat);
 
-const today = master.filter((r) => r.latest_seen_date === asOf && r.mature_fit >= 60)
+const today = master.filter((r) => r.latest_seen_date === asOf && r.mature_fit >= 60 && !/(男篮|女篮|球队|足球|篮球|电竞|游戏|世界赛|季后赛|S\s*赛)/.test(r.title))
   .map((r) => ({ ...r, score: r.max_heat / 10000 + r.appearance_count * 5 + r.mature_fit / 10 }))
   .sort((a, b) => b.score - a.score).slice(0, 3)
   .map((r, i) => ({ rank: i + 1, level: i === 0 ? "S" : "A", selection_reason: i === 0 ? "当日热点强度与历史验证度最高，且适合熟龄账号" : "具备熟龄改造空间，作为今日备选", ...r }));
@@ -209,7 +210,7 @@ const todayHeaders = ["rank","level","selection_reason",...masterHeaders,"score"
 const toCsv = (headers, rows) => [headers.join(","), ...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(","))].join("\n") + "\n";
 await fs.writeFile(path.join(masterDir, "hot_topics.csv"), toCsv(masterHeaders, master), "utf8");
 await fs.writeFile(path.join(masterDir, "mother_topics.csv"), toCsv(motherHeaders, motherRows), "utf8");
-await fs.writeFile(path.join(outputDir, "today_selection_20260921.csv"), toCsv(todayHeaders, today), "utf8");
+await fs.writeFile(path.join(outputDir, "today_selection_20260922.csv"), toCsv(todayHeaders, today), "utf8");
 await fs.writeFile(path.join(masterDir, "source_manifest.csv"), toCsv(["source_file","date","format","status"], rawNames.map((name) => ({ source_file: name, date: dateFromName(name), format: path.extname(name).slice(1).toLowerCase(), status: "已归档" }))), "utf8");
 
 const workbook = Workbook.create();
@@ -259,7 +260,7 @@ fillDataSheet(matureSheet, rawHeaders.concat(["source_files","data_note"]), matu
 matureSheet.getRange(`E4:F${matureRows.length + 3}`).format.numberFormat = "#,##0";
 fillDataSheet(motherSheet, motherHeaders, motherRows, "母题库", "MotherTopics", { widths: [28,16,14,16,14,18,22,14] });
 motherSheet.getRange(`E4:E${motherRows.length + 3}`).format.numberFormat = "#,##0";
-fillDataSheet(todaySheet, todayHeaders, today, "今日选题（2026-09-21）", "TodayPicks", { widths: [8,8,30,12,14,14,12,12,12,42,28,20,42,42,16,18,24,12,14,14,14,14,16,22,12] });
+fillDataSheet(todaySheet, todayHeaders, today, `今日选题（${asOf}）`, "TodayPicks", { widths: [8,8,30,12,14,14,12,12,12,42,28,20,42,42,16,18,24,12,14,14,14,14,16,22,12] });
 todaySheet.getRange(`F4:G${today.length + 3}`).format.numberFormat = "#,##0";
 
 workbook.recalculate();
